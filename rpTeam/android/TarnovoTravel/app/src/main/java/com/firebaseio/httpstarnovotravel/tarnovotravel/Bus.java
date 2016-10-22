@@ -13,17 +13,17 @@ public class Bus {
 
     private String uid;
     private int busNumber;
-    private double longtitude;
+    private double longitude;
     private double latitude;
 
     public Bus() {
         // necessary for Firebase's deserializer.
     }
 
-    public Bus(String uid, int busNumber, double longtitude, double latitude) {
+    public Bus(String uid, int busNumber, double longitude, double latitude) {
         this.uid = uid;
         this.busNumber = busNumber;
-        this.longtitude = longtitude;
+        this.longitude = longitude;
         this.latitude = latitude;
     }
 
@@ -37,8 +37,8 @@ public class Bus {
         return busNumber;
     }
 
-    public double getLongtitude() {
-        return longtitude;
+    public double getLongitude() {
+        return longitude;
     }
 
     public double getLatitude() {
@@ -54,8 +54,8 @@ public class Bus {
         this.busNumber = busNumber;
     }
 
-    public void setLongtitude(double longtitude) {
-        this.longtitude = longtitude;
+    public void setLongitude(double longtitude) {
+        this.longitude = longtitude;
     }
 
     public void setLatitude(double latitude) {
@@ -66,7 +66,7 @@ public class Bus {
     public Map<String, Object> toMap() {
         HashMap<String, Object> result = new HashMap<>();
         result.put("busNumber", busNumber);
-        result.put("longtitude", longtitude);
+        result.put("longitude", longitude);
         result.put("latitude", latitude);
 
         return result;

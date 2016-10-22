@@ -15,6 +15,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.firebase.client.Firebase;
@@ -24,12 +25,13 @@ import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
-    private Button b;
-    private TextView t;
+    private Button startTrackingButton;
+    private Button stopTrackingButton;
+    private TextView textField;
     private LocationManager locationManager;
     private LocationListener listener;
-    private Firebase mFirebaseRef;
-
+    private Firebase myFirebaseRef;
+    final Bus bus = new Bus("", 0, 0.0, 0.0);
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -37,20 +39,29 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
         Firebase.setAndroidContext(this);
-        mFirebaseRef = new Firebase("https://tarnovotravel.firebaseio.com/buses");
-        final Bus bus = new Bus("", 0, 0.0, 0.0);
+        myFirebaseRef = new Firebase("https://tarnovotravel.firebaseio.com/buses");
 
-        t = (TextView) findViewById(R.id.textView);
-        b = (Button) findViewById(R.id.button);
+        textField = (TextView) findViewById(R.id.textView);
+        startTrackingButton = (Button) findViewById(R.id.button);
+        stopTrackingButton = (Button) findViewById(R.id.button2);
+        final EditText editText = (EditText) findViewById(R.id.editText);
+
+        stopTrackingButton.setOnClickListener(new android.view.View.OnClickListener() {
+            @Override
+            public void onClick(android.view.View v) {
+                if(bus.getUid() != "") {
+                    myFirebaseRef.child("/" + bus.getUid()).removeValue();
+                }
+            }
+        });
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-
 
         listener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
-                t.append("\n " + location.getLongitude() + " " + location.getLatitude());
-
+                textField.setText(location.getLongitude() + " " + location.getLatitude());
+                bus.setBusNumber(Integer.parseInt(editText.getText().toString()));
                 updateBusCoordinates(bus, location.getLongitude(), location.getLatitude());
             }
 
@@ -96,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         // this code won't execute IF permissions are not allowed, because in the line above there is return statement.
-        b.setOnClickListener(new View.OnClickListener() {
+        startTrackingButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 //noinspection MissingPermission
@@ -105,22 +116,21 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void updateBusCoordinates(Bus bus, double longtitude, double latitude) {
+    private void updateBusCoordinates(Bus bus, double longitude, double latitude) {
         String uid = bus.getUid();
         if(uid == "") {
-            uid = mFirebaseRef.push().getKey();
+            uid = myFirebaseRef.push().getKey();
             bus.setUid(uid);
         }
         else {
-            bus.setBusNumber(23);
             bus.setLatitude(latitude);
-            bus.setLongtitude(longtitude);
+            bus.setLongitude(longitude);
 
             Map<String, Object> busValues = bus.toMap();
 
             Map<String, Object> childUpdates = new HashMap<>();
             childUpdates.put("/" + bus.getUid(), busValues);
-            mFirebaseRef.updateChildren(childUpdates);
+            myFirebaseRef.updateChildren(childUpdates);
         }
     }
 }
