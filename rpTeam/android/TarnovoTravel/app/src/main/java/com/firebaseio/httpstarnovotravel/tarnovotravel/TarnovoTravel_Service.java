@@ -10,6 +10,9 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.support.annotation.Nullable;
+
+import com.firebase.client.Firebase;
+
 /**
  * Created by rostik on 22.10.16.
  */
@@ -17,6 +20,7 @@ import android.support.annotation.Nullable;
 public class TarnovoTravel_Service extends Service {
     private LocationListener listener;
     private LocationManager locationManager;
+    private  Firebase mFirebaseRef;
 
     @Nullable
     @Override
@@ -27,12 +31,19 @@ public class TarnovoTravel_Service extends Service {
     @Override
     public void onCreate() {
 
+        Firebase.setAndroidContext(this);
+        mFirebaseRef = new Firebase("https://tarnovotravel.firebaseio.com/buses");
+
         listener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
                 Intent i = new Intent("location_update");
                 i.putExtra("coordinates",location.getLongitude()+" "+location.getLatitude());
                 sendBroadcast(i);
+                double longtitude = location.getLongitude();
+                double latitude = location.getLatitude();
+                Bus bus = new Bus(23, longtitude, latitude);
+                mFirebaseRef.push().setValue(bus);
             }
 
             @Override
@@ -56,7 +67,7 @@ public class TarnovoTravel_Service extends Service {
         locationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
 
         //noinspection MissingPermission
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,3000,0,listener);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,3000,3,listener);
 
     }
 
