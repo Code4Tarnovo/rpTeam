@@ -1,106 +1,126 @@
 package com.firebaseio.httpstarnovotravel.tarnovotravel;
 
 import android.Manifest;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
-import android.support.v4.content.ContextCompat;
+import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.firebase.client.Firebase;
+
+import java.util.HashMap;
+import java.util.Map;
+
 public class MainActivity extends AppCompatActivity {
 
-    private Button btn_start, btn_stop;
-    private TextView textView;
-    private BroadcastReceiver broadcastReceiver;
+    private Button b;
+    private TextView t;
+    private LocationManager locationManager;
+    private LocationListener listener;
+    private Firebase mFirebaseRef;
+
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        if(broadcastReceiver == null){
-            broadcastReceiver = new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-
-                    textView.append("\n" +intent.getExtras().get("coordinates"));
-
-                }
-            };
-        }
-        registerReceiver(broadcastReceiver,new IntentFilter("location_update"));
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if(broadcastReceiver != null){
-            unregisterReceiver(broadcastReceiver);
-        }
-    }
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
+        Firebase.setAndroidContext(this);
+        mFirebaseRef = new Firebase("https://tarnovotravel.firebaseio.com/buses");
+        final Bus bus = new Bus("", 0, 0.0, 0.0);
 
-        btn_start = (Button) findViewById(R.id.button);
-        btn_stop = (Button) findViewById(R.id.button2);
-        textView = (TextView) findViewById(R.id.textView);
+        t = (TextView) findViewById(R.id.textView);
+        b = (Button) findViewById(R.id.button);
 
-        if(!runtime_permissions())
-            enable_buttons();
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
-    }
 
-    private void enable_buttons() {
-
-        btn_start.setOnClickListener(new View.OnClickListener() {
+        listener = new LocationListener() {
             @Override
-            public void onClick(View view) {
-                Intent i =new Intent(getApplicationContext(),TarnovoTravel_Service.class);
-                startService(i);
+            public void onLocationChanged(Location location) {
+                t.append("\n " + location.getLongitude() + " " + location.getLatitude());
+
+                updateBusCoordinates(bus, location.getLongitude(), location.getLatitude());
             }
-        });
 
-        btn_stop.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
-
-                Intent i = new Intent(getApplicationContext(),TarnovoTravel_Service.class);
-                stopService(i);
+            public void onStatusChanged(String s, int i, Bundle bundle) {
 
             }
-        });
 
+            @Override
+            public void onProviderEnabled(String s) {
+
+            }
+
+            @Override
+            public void onProviderDisabled(String s) {
+
+                Intent i = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                startActivity(i);
+            }
+        };
+
+        configure_button();
     }
-
-    private boolean runtime_permissions() {
-        if(Build.VERSION.SDK_INT >= 23 && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},100);
-
-            return true;
-        }
-        return false;
-    }
-
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if(requestCode == 100){
-            if( grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED){
-                enable_buttons();
-            }else {
-                runtime_permissions();
+        switch (requestCode){
+            case 10:
+                configure_button();
+                break;
+            default:
+                break;
+        }
+    }
+
+    void configure_button(){
+        // first check for permissions
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.INTERNET}
+                        ,10);
             }
+            return;
+        }
+        // this code won't execute IF permissions are not allowed, because in the line above there is return statement.
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                //noinspection MissingPermission
+                locationManager.requestLocationUpdates("gps", 5000, 3, listener);
+            }
+        });
+    }
+
+    private void updateBusCoordinates(Bus bus, double longtitude, double latitude) {
+        String uid = bus.getUid();
+        if(uid == "") {
+            uid = mFirebaseRef.push().getKey();
+            bus.setUid(uid);
+        }
+        else {
+            bus.setBusNumber(23);
+            bus.setLatitude(latitude);
+            bus.setLongtitude(longtitude);
+
+            Map<String, Object> busValues = bus.toMap();
+
+            Map<String, Object> childUpdates = new HashMap<>();
+            childUpdates.put("/" + bus.getUid(), busValues);
+            mFirebaseRef.updateChildren(childUpdates);
         }
     }
 }

@@ -13,6 +13,9 @@ import android.support.annotation.Nullable;
 
 import com.firebase.client.Firebase;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Created by rostik on 22.10.16.
  */
@@ -33,6 +36,7 @@ public class TarnovoTravel_Service extends Service {
 
         Firebase.setAndroidContext(this);
         mFirebaseRef = new Firebase("https://tarnovotravel.firebaseio.com/buses");
+        final Bus bus = new Bus("", 0, 0.0, 0.0);
 
         listener = new LocationListener() {
             @Override
@@ -40,10 +44,7 @@ public class TarnovoTravel_Service extends Service {
                 Intent i = new Intent("location_update");
                 i.putExtra("coordinates",location.getLongitude()+" "+location.getLatitude());
                 sendBroadcast(i);
-                double longtitude = location.getLongitude();
-                double latitude = location.getLatitude();
-                Bus bus = new Bus(23, longtitude, latitude);
-                mFirebaseRef.push().setValue(bus);
+                updateBusCoordinates(bus, location.getLongitude(), location.getLatitude());
             }
 
             @Override
@@ -77,6 +78,25 @@ public class TarnovoTravel_Service extends Service {
         if(locationManager != null){
             //noinspection MissingPermission
             locationManager.removeUpdates(listener);
+        }
+    }
+
+    private void updateBusCoordinates(Bus bus, double longtitude, double latitude) {
+        String uid = bus.getUid();
+        if(uid == "") {
+            uid = mFirebaseRef.push().getKey();
+            bus.setUid(uid);
+        }
+        else {
+            bus.setBusNumber(23);
+            bus.setLatitude(latitude);
+            bus.setLongtitude(longtitude);
+
+            Map<String, Object> busValues = bus.toMap();
+
+            Map<String, Object> childUpdates = new HashMap<>();
+            childUpdates.put("/" + bus.getUid(), busValues);
+            mFirebaseRef.updateChildren(childUpdates);
         }
     }
 }
