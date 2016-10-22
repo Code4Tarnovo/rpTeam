@@ -20,8 +20,6 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".TarnovoTravel_Service"/>
-
     </application>
 
 </manifest>
